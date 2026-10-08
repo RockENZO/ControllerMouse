@@ -10,20 +10,29 @@ A macOS menu bar app that lets you use a game controller to control your mouse c
 - **Menu Bar App** — Runs quietly in your menu bar, always accessible
 - **Persistent Settings** — Your preferences are saved automatically
 
-## Controls
+## Default controls and customization
 
-| Controller Button | Action |
-|-------------------|--------|
-| Left Stick | Move cursor |
-| Right Stick | Move cursor |
-| A / X | Left click |
+These are the checked-in defaults in `Sources/Configuration/ButtonMapping.swift`; saved preferences can override them in the settings popover.
+
+| Controller input | Default action |
+| --- | --- |
+| Left / right stick | Move cursor (each stick can be configured independently) |
+| A / Cross | Left click |
 | B / Circle | Right click |
-| X / Square | Left click + drag (hold) |
-| Y / Triangle | Right click + drag (hold) |
-| LB / L1 | Scroll left |
-| RB / R1 | Scroll right |
-| LT / L2 | Scroll down |
-| RT / R2 | Scroll up |
+| X / Square | Middle click |
+| Y / Triangle | Double click |
+| LB / L1 | Right click |
+| RB / R1 | Right drag |
+| LT / L2 | Left click |
+| RT / R2 | Left drag |
+| Left stick press | Toggle controller cursor control |
+| Right stick press | Double click |
+| D-pad up / down | Scroll via the current D-pad handler |
+| D-pad left / right | Arrow keys via the current D-pad handler |
+
+The D-pad mapping defaults are labelled `prevTab` / `nextTab` for left/right, but `processDPad` currently sends arrow keys for every non-scroll D-pad action. Do not assume those labels perform browser-tab switching. The README reflects this implementation limit; correcting the dispatcher is separate application work.
+
+Stick speed, deadzones, button mappings and preferences are exposed in the settings UI. Actual controller/device behavior has not been revalidated as part of this documentation update.
 
 ## Requirements
 
