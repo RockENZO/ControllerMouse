@@ -26,10 +26,9 @@ final class GameControllerManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            Task { @MainActor in
-                if let controller = notification.object as? GCController {
-                    self?.handleControllerConnected(controller)
-                }
+            guard let controller = notification.object as? GCController else { return }
+            Task { @MainActor [weak self] in
+                self?.handleControllerConnected(controller)
             }
         }
 
@@ -38,17 +37,16 @@ final class GameControllerManager: ObservableObject {
             object: nil,
             queue: .main
         ) { [weak self] notification in
-            Task { @MainActor in
-                if let controller = notification.object as? GCController {
-                    self?.handleControllerDisconnected(controller)
-                }
+            guard let controller = notification.object as? GCController else { return }
+            Task { @MainActor [weak self] in
+                self?.handleControllerDisconnected(controller)
             }
         }
     }
 
     func startDiscovery() {
         GCController.startWirelessControllerDiscovery { [weak self] in
-            Task { @MainActor in
+            Task { @MainActor [weak self] in
                 self?.isSearching = false
             }
         }
