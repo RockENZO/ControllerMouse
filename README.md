@@ -27,10 +27,15 @@ These are the checked-in defaults in `Sources/Configuration/ButtonMapping.swift`
 | RT / R2 | Left drag |
 | Left stick press | Toggle controller cursor control |
 | Right stick press | Double click |
-| D-pad up / down | Scroll via the current D-pad handler |
-| D-pad left / right | Arrow keys via the current D-pad handler |
+| D-pad up / down | Scroll vertically |
+| D-pad left / right | Previous / next tab (Control-Shift-Tab / Control-Tab) |
 
-The D-pad mapping defaults are labelled `prevTab` / `nextTab` for left/right, but `processDPad` currently sends arrow keys for every non-scroll D-pad action. Do not assume those labels perform browser-tab switching. The README reflects this implementation limit; correcting the dispatcher is separate application work.
+D-pad inputs honor the configured action, including `None`, mouse clicks/drags,
+scrolling and tab switching. Scroll direction follows the mapping, so any D-pad
+input can scroll horizontally or vertically. Tab switching sends balanced
+Control-Tab or Control-Shift-Tab keystrokes once per press; support depends on the
+focused application. Releasing a button or D-pad drag releases the mouse button,
+even if its mapping changed while held.
 
 Stick speed, deadzones, button mappings and preferences are exposed in the settings UI. Actual controller/device behavior has not been revalidated as part of this documentation update.
 
@@ -64,6 +69,23 @@ Stick speed, deadzones, button mappings and preferences are exposed in the setti
 4. Build and run with **Cmd+R**
 
 > **Note:** On first launch, grant Accessibility permission in **System Settings → Privacy & Security → Accessibility**.
+
+## Verification
+
+On macOS with the Xcode command line tools available:
+
+```bash
+bash scripts/test-mappings.sh
+xcodebuild -project ControllerMouse.xcodeproj -scheme ControllerMouse \
+  -configuration Debug -derivedDataPath /tmp/ControllerMouse-build \
+  CODE_SIGNING_ALLOWED=NO build
+```
+
+The mapping tests capture generated events rather than posting them to the desktop.
+They cover tab shortcut press/release balance, held-button suppression, disabled
+D-pad input, remapped scroll axes and drag release after a mapping change. CI runs
+these checks and builds the app. Physical gamepad polling, Accessibility permissions
+and focused-app shortcut behavior still require device testing.
 
 ## Project Structure
 
