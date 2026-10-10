@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 77;
+	objectVersion = 60;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -172,6 +172,7 @@
 				};
 			};
 			buildConfigurationList = 14B2E48AF88D0F0287DC1EFE /* Build configuration list for PBXProject "ControllerMouse" */;
+			compatibilityVersion = "Xcode 15.0";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -180,7 +181,6 @@
 			);
 			mainGroup = 4DFAAF8021710CD16846E631;
 			minimizedProjectReferenceProxies = 1;
-			preferredProjectObjectVersion = 77;
 			productRefGroup = 00F359AAE762EDA2DB18991E /* Products */;
 			projectDirPath = "";
 			projectRoot = "";

@@ -11,6 +11,7 @@ final class ControllerInputHandler: ObservableObject {
     private let keyboardSimulator: KeyboardSimulator
     private var buttonMapping: ButtonMapping
     private var previousButtonStates: [String: Bool] = [:]
+    private var pressedActions: [String: ControllerAction] = [:]
     private weak var appState: AppState?
     private var cancellables = Set<AnyCancellable>()
 
@@ -155,63 +156,25 @@ final class ControllerInputHandler: ObservableObject {
         previousButtonStates[key] = pressed
     }
 
-    private func processButton(pressed: Bool, action: ControllerAction, buttonId: String) {
+    func processButton(pressed: Bool, action: ControllerAction, buttonId: String) {
         let wasPressed = previousButtonStates[buttonId] ?? false
 
         if pressed && !wasPressed {
+            pressedActions[buttonId] = action
             handleAction(action, isTrigger: false)
         } else if !pressed && wasPressed {
-            handleButtonRelease(action)
+            handleButtonRelease(pressedActions.removeValue(forKey: buttonId) ?? action)
         }
 
         previousButtonStates[buttonId] = pressed
     }
 
-    private func processDPad(up: Bool, down: Bool, left: Bool, right: Bool) {
-        let upKey = "dpad_up"
-        let downKey = "dpad_down"
-        let leftKey = "dpad_left"
-        let rightKey = "dpad_right"
-
-        let wasUp = previousButtonStates[upKey] ?? false
-        let wasDown = previousButtonStates[downKey] ?? false
-        let wasLeft = previousButtonStates[leftKey] ?? false
-        let wasRight = previousButtonStates[rightKey] ?? false
-
-        if up && !wasUp { handleDPadAction(buttonMapping.dpadUpAction, key: .up, press: true) }
-        if !up && wasUp { handleDPadRelease(buttonMapping.dpadUpAction, key: .up) }
-
-        if down && !wasDown { handleDPadAction(buttonMapping.dpadDownAction, key: .down, press: true) }
-        if !down && wasDown { handleDPadRelease(buttonMapping.dpadDownAction, key: .down) }
-
-        if left && !wasLeft { handleDPadAction(buttonMapping.dpadLeftAction, key: .left, press: true) }
-        if !left && wasLeft { handleDPadRelease(buttonMapping.dpadLeftAction, key: .left) }
-
-        if right && !wasRight { handleDPadAction(buttonMapping.dpadRightAction, key: .right, press: true) }
-        if !right && wasRight { handleDPadRelease(buttonMapping.dpadRightAction, key: .right) }
-
-        previousButtonStates[upKey] = up
-        previousButtonStates[downKey] = down
-        previousButtonStates[leftKey] = left
-        previousButtonStates[rightKey] = right
-    }
-
-    private func handleDPadAction(_ action: ControllerAction, key: KeyboardSimulator.ArrowKey, press: Bool) {
-        switch action {
-        case .scrollUp, .scrollDown, .scrollLeft, .scrollRight:
-            keyboardSimulator.sendScroll(key, press: press)
-        default:
-            keyboardSimulator.sendArrowKey(key, press: press)
-        }
-    }
-
-    private func handleDPadRelease(_ action: ControllerAction, key: KeyboardSimulator.ArrowKey) {
-        switch action {
-        case .scrollUp, .scrollDown, .scrollLeft, .scrollRight:
-            break
-        default:
-            keyboardSimulator.sendArrowKey(key, press: false)
-        }
+    // Internal so the input mapping can be verified without a physical controller.
+    func processDPad(up: Bool, down: Bool, left: Bool, right: Bool) {
+        processButton(pressed: up, action: buttonMapping.dpadUpAction, buttonId: "dpad_up")
+        processButton(pressed: down, action: buttonMapping.dpadDownAction, buttonId: "dpad_down")
+        processButton(pressed: left, action: buttonMapping.dpadLeftAction, buttonId: "dpad_left")
+        processButton(pressed: right, action: buttonMapping.dpadRightAction, buttonId: "dpad_right")
     }
 
     private func handleAction(_ action: ControllerAction, isTrigger: Bool) {
@@ -236,6 +199,10 @@ final class ControllerInputHandler: ObservableObject {
             keyboardSimulator.sendScroll(.left, press: true)
         case .scrollRight:
             keyboardSimulator.sendScroll(.right, press: true)
+        case .prevTab:
+            keyboardSimulator.sendTabSwitch(previous: true)
+        case .nextTab:
+            keyboardSimulator.sendTabSwitch(previous: false)
         case .toggleControl:
             appState?.isActive.toggle()
         default:
@@ -254,7 +221,9 @@ final class ControllerInputHandler: ObservableObject {
         }
     }
 
-    private func handleButtonRelease(_ action: ControllerAction) {}
+    private func handleButtonRelease(_ action: ControllerAction) {
+        handleDragEnd(action)
+    }
 
     private func isDragAction(_ action: ControllerAction) -> Bool {
         return action == .leftDrag || action == .rightDrag

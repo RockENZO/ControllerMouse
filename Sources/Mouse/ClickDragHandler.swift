@@ -4,6 +4,14 @@ import AppKit
 
 @MainActor
 final class ClickDragHandler {
+    private let postEvent: (CGEvent) -> Void
+
+    init(postEvent: @escaping (CGEvent) -> Void = { event in
+        event.post(tap: .cghidEventTap)
+    }) {
+        self.postEvent = postEvent
+    }
+
     private var isDragging = false
     private var dragStartLocation: CGPoint = .zero
 
@@ -80,15 +88,15 @@ final class ClickDragHandler {
             mouseButton: .left
         )
 
-        downEvent?.post(tap: CGEventTapLocation.cghidEventTap)
-        upEvent?.post(tap: CGEventTapLocation.cghidEventTap)
-        doubleDownEvent?.post(tap: CGEventTapLocation.cghidEventTap)
-        doubleUpEvent?.post(tap: CGEventTapLocation.cghidEventTap)
+        if let event = downEvent { postEvent(event) }
+        if let event = upEvent { postEvent(event) }
+        if let event = doubleDownEvent { postEvent(event) }
+        if let event = doubleUpEvent { postEvent(event) }
     }
 
     private func postMouseEvent(at point: CGPoint, type: CGEventType, button: CGMouseButton) {
         guard let event = CGEvent(mouseEventSource: nil, mouseType: type, mouseCursorPosition: point, mouseButton: button) else { return }
-        event.post(tap: CGEventTapLocation.cghidEventTap)
+        postEvent(event)
     }
 
     private func invertPoint(_ point: CGPoint) -> CGPoint {

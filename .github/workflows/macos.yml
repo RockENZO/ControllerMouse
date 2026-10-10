@@ -1,0 +1,19 @@
+name: macOS build and mapping tests
+on:
+  push:
+  pull_request:
+permissions:
+  contents: read
+jobs:
+  verify:
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+      - name: Verify controller mappings without sending desktop input
+        run: bash scripts/test-mappings.sh
+      - name: Generate compatible Xcode project from source specification
+        run: |
+          brew install xcodegen
+          xcodegen generate
+      - name: Build macOS application without signing
+        run: xcodebuild -project ControllerMouse.xcodeproj -scheme ControllerMouse -configuration Debug -derivedDataPath "$RUNNER_TEMP/ControllerMouse-build" CODE_SIGNING_ALLOWED=NO build
