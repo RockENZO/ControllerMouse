@@ -39,6 +39,6 @@ final class MouseController {
     }
 
     func stop() {
-        // Cleanup if needed
+        lastUpdateTime = 0
     }
 }

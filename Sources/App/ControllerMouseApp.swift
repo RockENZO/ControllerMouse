@@ -55,9 +55,7 @@ class AppDelegate: NSObject, NSApplicationDelegate {
         )
 
         gameControllerManager.onInput = { [weak inputHandler] gamepad in
-            Task { @MainActor in
-                inputHandler?.processExtendedGamepad(gamepad)
-            }
+            inputHandler?.processExtendedGamepad(gamepad)
         }
 
         gameControllerManager.startDiscovery()
