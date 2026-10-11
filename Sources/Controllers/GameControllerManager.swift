@@ -7,7 +7,7 @@ final class GameControllerManager: ObservableObject {
     @Published var connectedController: GCController?
     @Published var isSearching: Bool = false
 
-    var onInput: ((GCExtendedGamepad) -> Void)?
+    var onInput: (@MainActor (GCExtendedGamepad) -> Void)?
 
     private let inputHandler: ControllerInputHandler
     private let appState: AppState
@@ -63,6 +63,7 @@ final class GameControllerManager: ObservableObject {
     }
 
     private func handleControllerConnected(_ controller: GCController) {
+        if connectedController !== controller { inputHandler.resetInputState() }
         connectedController = controller
         appState.isControllerConnected = true
         appState.controllerName = controller.vendorName
@@ -112,6 +113,7 @@ final class GameControllerManager: ObservableObject {
     }
 
     private func stopInputPolling() {
+        inputHandler.resetInputState()
         guard isRunning else { return }
         isRunning = false
 
@@ -122,7 +124,7 @@ final class GameControllerManager: ObservableObject {
     }
 
     private func pollControllerInput() {
-        guard let controller = connectedController,
+        guard isRunning, let controller = connectedController,
               let gamepad = controller.extendedGamepad else { return }
 
         onInput?(gamepad)

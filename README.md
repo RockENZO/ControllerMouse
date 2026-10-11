@@ -35,7 +35,11 @@ scrolling and tab switching. Scroll direction follows the mapping, so any D-pad
 input can scroll horizontally or vertically. Tab switching sends balanced
 Control-Tab or Control-Shift-Tab keystrokes once per press; support depends on the
 focused application. Releasing a button or D-pad drag releases the mouse button,
-even if its mapping changed while held.
+even if its mapping changed while held. Toggle actions remain available when
+cursor control is disabled. Disabling control, disconnecting/replacing the
+controller or quitting the app releases held input; a newly connected controller
+starts with fresh button-edge state. Ordinary held inputs do not replay when
+control is reenabled.
 
 Stick speed, deadzones, button mappings and preferences are exposed in the settings UI. Actual controller/device behavior has not been revalidated as part of this documentation update.
 
@@ -83,7 +87,8 @@ xcodebuild -project ControllerMouse.xcodeproj -scheme ControllerMouse \
 
 The mapping tests capture generated events rather than posting them to the desktop.
 They cover tab shortcut press/release balance, held-button suppression, disabled
-D-pad input, remapped scroll axes and drag release after a mapping change. CI runs
+D-pad input, remapped scroll axes and drag release after a mapping change. Lifecycle
+checks cover inactive toggles, held-input suppression, cleanup and device reset. CI runs
 these checks and builds the app. Physical gamepad polling, Accessibility permissions
 and focused-app shortcut behavior still require device testing.
 

@@ -4,7 +4,11 @@ import Combine
 
 @MainActor
 final class ControllerInputHandler: ObservableObject {
-    @Published var isActive: Bool = false
+    @Published var isActive: Bool = false {
+        didSet {
+            if !isActive { releaseHeldInputs() }
+        }
+    }
 
     private let mouseController: MouseController
     private let clickDragHandler: ClickDragHandler
@@ -30,14 +34,12 @@ final class ControllerInputHandler: ObservableObject {
 
         if let appState = appState {
             appState.$buttonMapping
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] mapping in
                     self?.buttonMapping = mapping
                 }
                 .store(in: &cancellables)
 
             appState.$isActive
-                .receive(on: DispatchQueue.main)
                 .sink { [weak self] active in
                     self?.isActive = active
                 }
@@ -46,7 +48,24 @@ final class ControllerInputHandler: ObservableObject {
     }
 
     func processExtendedGamepad(_ gamepad: GCExtendedGamepad) {
-        print("DEBUG: processExtendedGamepad called, isActive=\(isActive)\n"); guard isActive else { return }
+        let inputs: [(String, Bool, ControllerAction)] = [
+            ("leftTrigger", gamepad.leftTrigger.isPressed, buttonMapping.leftTriggerAction),
+            ("rightTrigger", gamepad.rightTrigger.isPressed, buttonMapping.rightTriggerAction),
+            ("leftShoulder", gamepad.leftShoulder.isPressed, buttonMapping.leftShoulderAction),
+            ("rightShoulder", gamepad.rightShoulder.isPressed, buttonMapping.rightShoulderAction),
+            ("buttonA", gamepad.buttonA.isPressed, buttonMapping.buttonAAction),
+            ("buttonB", gamepad.buttonB.isPressed, buttonMapping.buttonBAction),
+            ("buttonX", gamepad.buttonX.isPressed, buttonMapping.buttonXAction),
+            ("buttonY", gamepad.buttonY.isPressed, buttonMapping.buttonYAction),
+            ("dpad_up", gamepad.dpad.up.isPressed, buttonMapping.dpadUpAction),
+            ("dpad_down", gamepad.dpad.down.isPressed, buttonMapping.dpadDownAction),
+            ("dpad_left", gamepad.dpad.left.isPressed, buttonMapping.dpadLeftAction),
+            ("dpad_right", gamepad.dpad.right.isPressed, buttonMapping.dpadRightAction),
+            ("leftStickPress", gamepad.leftThumbstickButton?.isPressed ?? false, buttonMapping.leftStickPressAction),
+            ("rightStickPress", gamepad.rightThumbstickButton?.isPressed ?? false, buttonMapping.rightStickPressAction),
+        ]
+        processButtonFrame(inputs)
+        guard isActive else { return }
 
         let dx = gamepad.leftThumbstick.xAxis.value
         let dy = gamepad.leftThumbstick.yAxis.value
@@ -65,105 +84,29 @@ final class ControllerInputHandler: ObservableObject {
             }
         }
 
-        processTrigger(
-            pressed: gamepad.leftTrigger.isPressed,
-            value: gamepad.leftTrigger.value,
-            action: buttonMapping.leftTriggerAction,
-            buttonId: "leftTrigger"
-        )
-
-        processTrigger(
-            pressed: gamepad.rightTrigger.isPressed,
-            value: gamepad.rightTrigger.value,
-            action: buttonMapping.rightTriggerAction,
-            buttonId: "rightTrigger"
-        )
-
-        processButton(
-            pressed: gamepad.leftShoulder.isPressed,
-            action: buttonMapping.leftShoulderAction,
-            buttonId: "leftShoulder"
-        )
-
-        processButton(
-            pressed: gamepad.rightShoulder.isPressed,
-            action: buttonMapping.rightShoulderAction,
-            buttonId: "rightShoulder"
-        )
-
-        processButton(
-            pressed: gamepad.buttonA.isPressed,
-            action: buttonMapping.buttonAAction,
-            buttonId: "buttonA"
-        )
-
-        processButton(
-            pressed: gamepad.buttonB.isPressed,
-            action: buttonMapping.buttonBAction,
-            buttonId: "buttonB"
-        )
-
-        processButton(
-            pressed: gamepad.buttonX.isPressed,
-            action: buttonMapping.buttonXAction,
-            buttonId: "buttonX"
-        )
-
-        processButton(
-            pressed: gamepad.buttonY.isPressed,
-            action: buttonMapping.buttonYAction,
-            buttonId: "buttonY"
-        )
-
-        processDPad(
-            up: gamepad.dpad.up.isPressed,
-            down: gamepad.dpad.down.isPressed,
-            left: gamepad.dpad.left.isPressed,
-            right: gamepad.dpad.right.isPressed
-        )
-
-        let leftStickPressed = gamepad.leftThumbstickButton?.isPressed ?? false
-        let rightStickPressed = gamepad.rightThumbstickButton?.isPressed ?? false
-
-        processButton(
-            pressed: leftStickPressed,
-            action: buttonMapping.leftStickPressAction,
-            buttonId: "leftStickPress"
-        )
-
-        processButton(
-            pressed: rightStickPressed,
-            action: buttonMapping.rightStickPressAction,
-            buttonId: "rightStickPress"
-        )
     }
 
-    private func processTrigger(
-        pressed: Bool,
-        value: Float,
-        action: ControllerAction,
-        buttonId: String
-    ) {
-        let key = "trigger_\(buttonId)"
-        let wasPressed = previousButtonStates[key] ?? false
-
-        if pressed && !wasPressed {
-            handleAction(action, isTrigger: true)
-        } else if !pressed && wasPressed && isDragAction(action) {
-            handleDragEnd(action)
+    // Poll toggle inputs even when cursor control is disabled. Ordinary inputs
+    // still update their edge state while disabled so held presses cannot replay.
+    func processButtonFrame(_ inputs: [(String, Bool, ControllerAction)]) {
+        for (id, pressed, action) in inputs where action == .toggleControl {
+            processButton(pressed: pressed, action: action, buttonId: id)
         }
-
-        previousButtonStates[key] = pressed
+        for (id, pressed, action) in inputs where action != .toggleControl {
+            processButton(pressed: pressed, action: action, buttonId: id)
+        }
     }
 
     func processButton(pressed: Bool, action: ControllerAction, buttonId: String) {
         let wasPressed = previousButtonStates[buttonId] ?? false
 
-        if pressed && !wasPressed {
+        if pressed && !wasPressed && (isActive || action == .toggleControl) {
             pressedActions[buttonId] = action
-            handleAction(action, isTrigger: false)
+            handleAction(action)
         } else if !pressed && wasPressed {
-            handleButtonRelease(pressedActions.removeValue(forKey: buttonId) ?? action)
+            if let heldAction = pressedActions.removeValue(forKey: buttonId) {
+                handleButtonRelease(heldAction)
+            }
         }
 
         previousButtonStates[buttonId] = pressed
@@ -177,7 +120,7 @@ final class ControllerInputHandler: ObservableObject {
         processButton(pressed: right, action: buttonMapping.dpadRightAction, buttonId: "dpad_right")
     }
 
-    private func handleAction(_ action: ControllerAction, isTrigger: Bool) {
+    private func handleAction(_ action: ControllerAction) {
         switch action {
         case .leftClick:
             clickDragHandler.handleClick(.leftClick)
@@ -204,7 +147,8 @@ final class ControllerInputHandler: ObservableObject {
         case .nextTab:
             keyboardSimulator.sendTabSwitch(previous: false)
         case .toggleControl:
-            appState?.isActive.toggle()
+            isActive.toggle()
+            appState?.isActive = isActive
         default:
             break
         }
@@ -225,8 +169,18 @@ final class ControllerInputHandler: ObservableObject {
         handleDragEnd(action)
     }
 
-    private func isDragAction(_ action: ControllerAction) -> Bool {
-        return action == .leftDrag || action == .rightDrag
+    private func releaseHeldInputs() {
+        for action in Set(pressedActions.values) { handleDragEnd(action) }
+        pressedActions.removeAll()
+        keyboardSimulator.releaseAllKeys()
+        mouseController.stop()
+    }
+
+    // A disconnected/replaced controller must not leave down events or old
+    // press edges behind; the next device starts with a fresh input state.
+    func resetInputState() {
+        releaseHeldInputs()
+        previousButtonStates.removeAll()
     }
 
     func updateButtonMapping(_ mapping: ButtonMapping) {

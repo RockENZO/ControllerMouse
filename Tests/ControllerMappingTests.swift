@@ -12,6 +12,7 @@ struct ControllerMappingTests {
             clickDragHandler: clicks,
             keyboardSimulator: keyboard
         )
+        handler.isActive = true
         func dpad(_ left: Bool = false, _ right: Bool = false) {
             handler.processDPad(up: false, down: false, left: left, right: right)
         }
@@ -71,6 +72,65 @@ struct ControllerMappingTests {
         handler.processButton(pressed: true, action: .rightDrag, buttonId: "rightShoulder")
         handler.processButton(pressed: false, action: .rightDrag, buttonId: "rightShoulder")
         precondition(events.map { $0.type } == [.rightMouseDown, .rightMouseUp], "Shoulder drag must release")
-        print("Passed 10 controller mapping scenarios; no desktop events posted.")
+        // 1: a toggle can disable, remain held without oscillation, and reenable.
+        handler.resetInputState()
+        handler.processButtonFrame([("toggle", true, .toggleControl)])
+        precondition(!handler.isActive)
+        handler.processButtonFrame([("toggle", true, .toggleControl)])
+        precondition(!handler.isActive)
+        handler.processButtonFrame([("toggle", false, .toggleControl)])
+        handler.processButtonFrame([("toggle", true, .toggleControl)])
+        precondition(handler.isActive)
+        handler.processButtonFrame([("toggle", false, .toggleControl)])
+
+        // 2: inactive presses are latched, never replayed after reactivation.
+        handler.isActive = false
+        events.removeAll()
+        handler.processButtonFrame([("buttonA", true, .nextTab)])
+        precondition(events.isEmpty)
+        handler.processButtonFrame([("toggle", true, .toggleControl), ("buttonA", true, .nextTab)])
+        precondition(handler.isActive && events.isEmpty)
+        handler.processButtonFrame([("buttonA", false, .nextTab)])
+        handler.processButtonFrame([("buttonA", true, .nextTab)])
+        precondition(keyCodes() == [59, 48, 48, 59])
+        handler.resetInputState()
+
+        // 3: disabling releases both mouse buttons and a held keyboard key.
+        events.removeAll()
+        handler.processButton(pressed: true, action: .leftDrag, buttonId: "leftTrigger")
+        handler.processButton(pressed: true, action: .rightDrag, buttonId: "rightTrigger")
+        keyboard.sendArrowKey(.up, press: true)
+        handler.isActive = false
+        precondition(events.filter { $0.type == .leftMouseUp }.count == 1)
+        precondition(events.filter { $0.type == .rightMouseUp }.count == 1)
+        precondition(events.filter { $0.type == .keyUp }.count == 1)
+        let releasedCount = events.count
+        handler.resetInputState()
+        precondition(events.count == releasedCount, "Cleanup must be idempotent")
+
+        // 4: disconnect/reset releases a drag and permits the next device press.
+        handler.isActive = true
+        events.removeAll()
+        handler.processButton(pressed: true, action: .leftDrag, buttonId: "leftTrigger")
+        handler.resetInputState()
+        handler.processButton(pressed: true, action: .leftDrag, buttonId: "leftTrigger")
+        handler.processButton(pressed: false, action: .none, buttonId: "leftTrigger")
+        precondition(events.map { $0.type } == [.leftMouseDown, .leftMouseUp, .leftMouseDown, .leftMouseUp])
+
+        // 5: toggling off wins over an ordinary press in the same poll.
+        handler.resetInputState()
+        events.removeAll()
+        handler.processButtonFrame([("buttonA", true, .leftClick), ("toggle", true, .toggleControl)])
+        precondition(!handler.isActive && events.isEmpty)
+
+        // 6: a D-pad toggle also works while inactive.
+        handler.resetInputState()
+        mapping.dpadLeftAction = .toggleControl
+        handler.updateButtonMapping(mapping)
+        dpad(true)
+        precondition(handler.isActive)
+        dpad()
+        handler.resetInputState()
+        print("Passed 16 controller mapping/lifecycle scenarios; no desktop events posted.")
     }
 }
