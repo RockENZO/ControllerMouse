@@ -88,10 +88,12 @@ final class ClickDragHandler {
             mouseButton: .left
         )
 
-        if let event = downEvent { postEvent(event) }
-        if let event = upEvent { postEvent(event) }
-        if let event = doubleDownEvent { postEvent(event) }
-        if let event = doubleUpEvent { postEvent(event) }
+        guard let downEvent, let upEvent, let doubleDownEvent, let doubleUpEvent else { return }
+        for (event, count) in [(downEvent, Int64(1)), (upEvent, 1),
+                               (doubleDownEvent, 2), (doubleUpEvent, 2)] {
+            event.setIntegerValueField(.mouseEventClickState, value: count)
+            postEvent(event)
+        }
     }
 
     private func postMouseEvent(at point: CGPoint, type: CGEventType, button: CGMouseButton) {
