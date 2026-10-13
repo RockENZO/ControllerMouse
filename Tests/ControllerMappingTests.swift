@@ -131,6 +131,11 @@ struct ControllerMappingTests {
         precondition(handler.isActive)
         dpad()
         handler.resetInputState()
-        print("Passed 16 controller mapping/lifecycle scenarios; no desktop events posted.")
+        events.removeAll()
+        clicks.handleDoubleClick()
+        precondition(events.map { $0.type } == [.leftMouseDown, .leftMouseUp, .leftMouseDown, .leftMouseUp])
+        precondition(events.map { $0.getIntegerValueField(.mouseEventClickState) } == [1,1,2,2],
+                     "Double-click events must carry single then double click counts")
+        print("Passed 17 controller mapping/lifecycle scenarios; no desktop events posted.")
     }
 }
