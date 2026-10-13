@@ -136,6 +136,36 @@ struct ControllerMappingTests {
         precondition(events.map { $0.type } == [.leftMouseDown, .leftMouseUp, .leftMouseDown, .leftMouseUp])
         precondition(events.map { $0.getIntegerValueField(.mouseEventClickState) } == [1,1,2,2],
                      "Double-click events must carry single then double click counts")
-        print("Passed 17 controller mapping/lifecycle scenarios; no desktop events posted.")
+        for action in [ControllerAction.leftDrag, .rightDrag] {
+            handler.resetInputState()
+            events.removeAll()
+            handler.processButton(pressed: true, action: action, buttonId: "first")
+            handler.processButton(pressed: true, action: action, buttonId: "second")
+            precondition(events.count == 1, "Shared drag must press the mouse only once")
+            handler.processButton(pressed: false, action: .none, buttonId: "first")
+            precondition(events.count == 1, "Drag must remain down while another mapped button is held")
+            handler.processButton(pressed: false, action: .none, buttonId: "second")
+            precondition(events.count == 2, "Last owner must release the drag")
+        }
+        handler.resetInputState()
+        events.removeAll()
+        handler.processButton(pressed: true, action: .leftDrag, buttonId: "first")
+        handler.processButton(pressed: true, action: .leftDrag, buttonId: "second")
+        handler.isActive = false
+        precondition(events.map { $0.type } == [.leftMouseDown, .leftMouseUp], "Disable must release a shared drag once")
+        handler.isActive = true
+        for action in [ControllerAction.leftDrag, .rightDrag] {
+            for reverseOrder in [false, true] {
+                handler.resetInputState()
+                events.removeAll()
+                handler.processButtonFrame([("old", true, action), ("new", false, action)])
+                let handoff: [(String, Bool, ControllerAction)] = [("old", false, action), ("new", true, action)]
+                handler.processButtonFrame(reverseOrder ? Array(handoff.reversed()) : handoff)
+                precondition(events.count == 1, "A same-frame drag handoff must not emit mouse-up/down")
+                handler.processButtonFrame([("old", false, action), ("new", false, action)])
+                precondition(events.count == 2, "Final frame must release exactly once")
+            }
+        }
+        print("Passed 24 controller mapping/lifecycle scenarios; no desktop events posted.")
     }
 }
