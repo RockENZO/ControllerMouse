@@ -101,11 +101,14 @@ final class ControllerInputHandler: ObservableObject {
         let wasPressed = previousButtonStates[buttonId] ?? false
 
         if pressed && !wasPressed && (isActive || action == .toggleControl) {
+            let sharedDrag = (action == .leftDrag || action == .rightDrag) && pressedActions.values.contains(action)
             pressedActions[buttonId] = action
-            handleAction(action)
+            if !sharedDrag { handleAction(action) }
         } else if !pressed && wasPressed {
             if let heldAction = pressedActions.removeValue(forKey: buttonId) {
-                handleButtonRelease(heldAction)
+                if !pressedActions.values.contains(heldAction) {
+                    handleButtonRelease(heldAction)
+                }
             }
         }
 

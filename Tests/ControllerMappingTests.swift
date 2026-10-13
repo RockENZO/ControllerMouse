@@ -136,6 +136,23 @@ struct ControllerMappingTests {
         precondition(events.map { $0.type } == [.leftMouseDown, .leftMouseUp, .leftMouseDown, .leftMouseUp])
         precondition(events.map { $0.getIntegerValueField(.mouseEventClickState) } == [1,1,2,2],
                      "Double-click events must carry single then double click counts")
-        print("Passed 17 controller mapping/lifecycle scenarios; no desktop events posted.")
+        for action in [ControllerAction.leftDrag, .rightDrag] {
+            handler.resetInputState()
+            events.removeAll()
+            handler.processButton(pressed: true, action: action, buttonId: "first")
+            handler.processButton(pressed: true, action: action, buttonId: "second")
+            precondition(events.count == 1, "Shared drag must press the mouse only once")
+            handler.processButton(pressed: false, action: .none, buttonId: "first")
+            precondition(events.count == 1, "Drag must remain down while another mapped button is held")
+            handler.processButton(pressed: false, action: .none, buttonId: "second")
+            precondition(events.count == 2, "Last owner must release the drag")
+        }
+        handler.resetInputState()
+        events.removeAll()
+        handler.processButton(pressed: true, action: .leftDrag, buttonId: "first")
+        handler.processButton(pressed: true, action: .leftDrag, buttonId: "second")
+        handler.isActive = false
+        precondition(events.map { $0.type } == [.leftMouseDown, .leftMouseUp], "Disable must release a shared drag once")
+        print("Passed 20 controller mapping/lifecycle scenarios; no desktop events posted.")
     }
 }
