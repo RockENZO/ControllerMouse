@@ -92,7 +92,12 @@ final class ControllerInputHandler: ObservableObject {
         for (id, pressed, action) in inputs where action == .toggleControl {
             processButton(pressed: pressed, action: action, buttonId: id)
         }
-        for (id, pressed, action) in inputs where action != .toggleControl {
+        // Establish new owners before releasing old ones so a same-frame
+        // handoff cannot briefly lift the shared mouse button.
+        for (id, pressed, action) in inputs where action != .toggleControl && pressed {
+            processButton(pressed: pressed, action: action, buttonId: id)
+        }
+        for (id, pressed, action) in inputs where action != .toggleControl && !pressed {
             processButton(pressed: pressed, action: action, buttonId: id)
         }
     }

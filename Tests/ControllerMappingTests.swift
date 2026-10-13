@@ -153,6 +153,19 @@ struct ControllerMappingTests {
         handler.processButton(pressed: true, action: .leftDrag, buttonId: "second")
         handler.isActive = false
         precondition(events.map { $0.type } == [.leftMouseDown, .leftMouseUp], "Disable must release a shared drag once")
-        print("Passed 20 controller mapping/lifecycle scenarios; no desktop events posted.")
+        handler.isActive = true
+        for action in [ControllerAction.leftDrag, .rightDrag] {
+            for reverseOrder in [false, true] {
+                handler.resetInputState()
+                events.removeAll()
+                handler.processButtonFrame([("old", true, action), ("new", false, action)])
+                let handoff: [(String, Bool, ControllerAction)] = [("old", false, action), ("new", true, action)]
+                handler.processButtonFrame(reverseOrder ? Array(handoff.reversed()) : handoff)
+                precondition(events.count == 1, "A same-frame drag handoff must not emit mouse-up/down")
+                handler.processButtonFrame([("old", false, action), ("new", false, action)])
+                precondition(events.count == 2, "Final frame must release exactly once")
+            }
+        }
+        print("Passed 24 controller mapping/lifecycle scenarios; no desktop events posted.")
     }
 }
