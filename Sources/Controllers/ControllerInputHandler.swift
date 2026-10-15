@@ -67,23 +67,28 @@ final class ControllerInputHandler: ObservableObject {
         processButtonFrame(inputs)
         guard isActive else { return }
 
-        let dx = gamepad.leftThumbstick.xAxis.value
-        let dy = gamepad.leftThumbstick.yAxis.value
+        processStickFrame(leftX: gamepad.leftThumbstick.xAxis.value,
+                          leftY: gamepad.leftThumbstick.yAxis.value,
+                          rightX: gamepad.rightThumbstick.xAxis.value,
+                          rightY: gamepad.rightThumbstick.yAxis.value,
+                          timestamp: CACurrentMediaTime())
+    }
 
-        let magnitude = sqrt(dx * dx + dy * dy)
-        if magnitude > buttonMapping.leftStickDeadzone {
-            mouseController.updateCursorPosition(dx: Float(dx), dy: Float(-dy), timestamp: CACurrentMediaTime())
+    func processStickFrame(leftX: Float, leftY: Float, rightX: Float, rightY: Float,
+                           timestamp: CFTimeInterval) {
+        guard isActive else { return }
+        var dx: Float = 0
+        var dy: Float = 0
+        if buttonMapping.leftStickEnabled && hypot(leftX, leftY) > buttonMapping.leftStickDeadzone {
+            dx += leftX; dy -= leftY
         }
-
-        if buttonMapping.rightStickEnabled {
-            let rx = gamepad.rightThumbstick.xAxis.value
-            let ry = gamepad.rightThumbstick.yAxis.value
-            let rightMagnitude = sqrt(rx * rx + ry * ry)
-            if rightMagnitude > buttonMapping.rightStickDeadzone {
-                mouseController.updateCursorPosition(dx: Float(rx), dy: Float(-ry), timestamp: CACurrentMediaTime())
-            }
+        if buttonMapping.rightStickEnabled && hypot(rightX, rightY) > buttonMapping.rightStickDeadzone {
+            dx += rightX; dy -= rightY
         }
-
+        // One movement integration per sampled frame; both sticks share a clock.
+        let magnitude = hypot(dx, dy)
+        if magnitude > 1 { dx /= magnitude; dy /= magnitude }
+        mouseController.updateCursorPosition(dx: dx, dy: dy, timestamp: timestamp)
     }
 
     // Poll toggle inputs even when cursor control is disabled. Ordinary inputs
