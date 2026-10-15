@@ -166,6 +166,44 @@ struct ControllerMappingTests {
                 precondition(events.count == 2, "Final frame must release exactly once")
             }
         }
-        print("Passed 24 controller mapping/lifecycle scenarios; no desktop events posted.")
+        let state = AppState()
+        let originalSpeed = state.cursorSpeed
+        let originalSensitivity = state.sensitivity
+        defer { state.cursorSpeed = originalSpeed; state.sensitivity = originalSensitivity }
+        state.cursorSpeed = 100
+        state.sensitivity = 1
+        var cursor = CGPoint(x: 10, y: 20)
+        var warps: [CGPoint] = []
+        let mouse = MouseController(appState: state, cursorLocation: { cursor },
+            screenBounds: { [CGRect(x: -100, y: -100, width: 300, height: 300)] },
+            warpCursor: { cursor = $0; warps.append($0) })
+        let sticks = ControllerInputHandler(mouseController: mouse, clickDragHandler: clicks,
+                                            keyboardSimulator: keyboard)
+        sticks.isActive = true
+        var axes = ButtonMapping()
+        axes.leftStickEnabled = false; axes.rightStickEnabled = false
+        sticks.updateButtonMapping(axes)
+        sticks.processStickFrame(leftX: 1, leftY: 1, rightX: 1, rightY: 1, timestamp: 1)
+        sticks.processStickFrame(leftX: 1, leftY: 1, rightX: 1, rightY: 1, timestamp: 1.01)
+        precondition(warps.isEmpty, "Disabled sticks must not move")
+        axes.leftStickEnabled = true
+        sticks.updateButtonMapping(axes)
+        sticks.processStickFrame(leftX: 0, leftY: 1, rightX: 1, rightY: 0, timestamp: 1.02)
+        precondition(abs(cursor.y - 19) < 0.0001 && cursor.x == 10, "Up must move upward in Quartz coordinates; disabled right stick is ignored")
+        axes.rightStickEnabled = true
+        sticks.updateButtonMapping(axes)
+        sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 1, rightY: 0, timestamp: 1.03)
+        precondition(abs(cursor.x - 11) < 0.0001 && warps.count == 2, "Both sticks must share one bounded movement per frame")
+        let screens = [CGRect(x: 0, y: 0, width: 100, height: 100),
+                       CGRect(x: -100, y: 0, width: 100, height: 100),
+                       CGRect(x: 0, y: -100, width: 100, height: 100)]
+        precondition(MouseController.constrained(CGPoint(x: -50, y: 20), to: screens) == CGPoint(x: -50, y: 20))
+        precondition(MouseController.constrained(CGPoint(x: 20, y: -50), to: screens) == CGPoint(x: 20, y: -50))
+        precondition(MouseController.constrained(CGPoint(x: 250, y: 20), to: screens) == CGPoint(x: 99, y: 20))
+        precondition(MouseController.constrained(CGPoint(x: 20, y: 20), to: []) == nil)
+        mouse.stop()
+        sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 5)
+        precondition(warps.count == 2, "Resume must not jump across a stale interval")
+        print("Passed 24 mapping/lifecycle scenarios plus cursor geometry and stick integration checks; no desktop events posted.")
     }
 }

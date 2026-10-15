@@ -7,8 +7,35 @@ final class MouseController {
     private let appState: AppState
     private var lastUpdateTime: CFTimeInterval = 0
 
-    init(appState: AppState) {
+    private let cursorLocation: () -> CGPoint?
+    private let screenBounds: () -> [CGRect]
+    private let warpCursor: (CGPoint) -> Void
+
+    init(appState: AppState,
+         cursorLocation: @escaping () -> CGPoint? = { CGEvent(source: nil)?.location },
+         screenBounds: @escaping () -> [CGRect] = {
+             let top = NSScreen.screens.first?.frame.maxY ?? 0
+             return NSScreen.screens.map {
+                 CGRect(x: $0.frame.minX, y: top - $0.frame.maxY,
+                        width: $0.frame.width, height: $0.frame.height)
+             }
+         },
+         warpCursor: @escaping (CGPoint) -> Void = { CGWarpMouseCursorPosition($0) }) {
         self.appState = appState
+        self.cursorLocation = cursorLocation
+        self.screenBounds = screenBounds
+        self.warpCursor = warpCursor
+    }
+
+    static func constrained(_ point: CGPoint, to bounds: [CGRect]) -> CGPoint? {
+        let displays = bounds.filter { $0.width > 0 && $0.height > 0 }
+        if displays.contains(where: { $0.contains(point) }) { return point }
+        return displays.map { rect in
+            CGPoint(x: max(rect.minX, min(point.x, rect.maxX - 1)),
+                    y: max(rect.minY, min(point.y, rect.maxY - 1)))
+        }.min { a, b in
+            hypot(a.x - point.x, a.y - point.y) < hypot(b.x - point.x, b.y - point.y)
+        }
     }
 
     func updateCursorPosition(dx: Float, dy: Float, timestamp: CFTimeInterval) {
@@ -20,22 +47,10 @@ final class MouseController {
         let scaledDeltaX = CGFloat(dx) * appState.cursorSpeed * appState.sensitivity * CGFloat(deltaTime)
         let scaledDeltaY = CGFloat(dy) * appState.cursorSpeed * appState.sensitivity * CGFloat(deltaTime)
 
-        let currentPos = NSEvent.mouseLocation
-        var newX = currentPos.x + scaledDeltaX
-        var newY = currentPos.y + scaledDeltaY
-
-        guard let screen = NSScreen.main else { return }
-
-        // Clamp to screen bounds
-        let minX: CGFloat = 0
-        let maxX = screen.frame.width
-        let minY: CGFloat = 0
-        let maxY = screen.frame.height
-
-        newX = max(minX, min(newX, maxX))
-        newY = max(minY, min(newY, maxY))
-
-        CGWarpMouseCursorPosition(CGPoint(x: newX, y: newY))
+        guard dx != 0 || dy != 0, let current = cursorLocation(),
+              let target = Self.constrained(CGPoint(x: current.x + scaledDeltaX,
+                                                    y: current.y + scaledDeltaY), to: screenBounds()) else { return }
+        warpCursor(target)
     }
 
     func stop() {

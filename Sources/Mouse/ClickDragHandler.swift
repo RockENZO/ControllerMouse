@@ -102,7 +102,7 @@ final class ClickDragHandler {
     }
 
     private func invertPoint(_ point: CGPoint) -> CGPoint {
-        guard let screen = NSScreen.main else { return point }
-        return CGPoint(x: point.x, y: screen.frame.height - point.y)
+        guard let screen = NSScreen.screens.first else { return point }
+        return CGPoint(x: point.x, y: screen.frame.maxY - point.y)
     }
 }
