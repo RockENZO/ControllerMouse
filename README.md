@@ -41,7 +41,7 @@ controller or quitting the app releases held input; a newly connected controller
 starts with fresh button-edge state. Ordinary held inputs do not replay when
 control is reenabled.
 
-Stick speed, deadzones, button mappings and preferences are exposed in the settings UI. Actual controller/device behavior has not been revalidated as part of this documentation update.
+The Cursor section’s Deadzone slider controls the left stick immediately and persists across relaunches. The right stick has its own deadzone in Edit Button Mapping; changing the left threshold does not change it. Settings saved by older versions are migrated automatically. Cursor speed, sensitivity and button mappings are also configurable. Actual controller/device behavior has not been revalidated as part of this documentation update.
 
 ## Requirements
 
@@ -89,7 +89,7 @@ The mapping tests capture generated events rather than posting them to the deskt
 They cover tab shortcut press/release balance, held-button suppression, disabled
 D-pad input, remapped scroll axes and drag release after a mapping change. Lifecycle
 checks cover inactive toggles, held-input suppression, cleanup and device reset. CI runs
-these checks and builds the app. Physical gamepad polling, Accessibility permissions
+these checks and builds the app. Deadzone tests exercise live settings propagation, relaunch persistence and legacy migration in an isolated preferences suite. Physical gamepad polling, Accessibility permissions
 and focused-app shortcut behavior still require device testing.
 
 ## Project Structure
