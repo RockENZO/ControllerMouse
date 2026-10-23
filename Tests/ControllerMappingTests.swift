@@ -4,11 +4,14 @@ import CoreGraphics
 @main
 struct ControllerMappingTests {
     @MainActor static func main() {
+        let suite = "ControllerMouseTests-\(UUID().uuidString)"
+        let defaults = UserDefaults(suiteName: suite)!
+        defer { defaults.removePersistentDomain(forName: suite) }
         var events: [CGEvent] = []
         let keyboard = KeyboardSimulator { event, _ in events.append(event) }
         let clicks = ClickDragHandler { event in events.append(event) }
         let handler = ControllerInputHandler(
-            mouseController: MouseController(appState: AppState()),
+            mouseController: MouseController(appState: AppState(defaults: defaults)),
             clickDragHandler: clicks,
             keyboardSimulator: keyboard
         )
@@ -166,7 +169,7 @@ struct ControllerMappingTests {
                 precondition(events.count == 2, "Final frame must release exactly once")
             }
         }
-        let state = AppState()
+        let state = AppState(defaults: defaults)
         let originalSpeed = state.cursorSpeed
         let originalSensitivity = state.sensitivity
         defer { state.cursorSpeed = originalSpeed; state.sensitivity = originalSensitivity }
@@ -204,6 +207,45 @@ struct ControllerMappingTests {
         mouse.stop()
         sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 5)
         precondition(warps.count == 2, "Resume must not jump across a stale interval")
-        print("Passed 24 mapping/lifecycle scenarios plus cursor geometry and stick integration checks; no desktop events posted.")
+        // The actual AppState -> Combine -> input path must follow slider changes.
+        defaults.removePersistentDomain(forName: suite)
+        let settings = AppState(defaults: defaults)
+        var settingsWarps: [CGPoint] = []
+        let settingsMouse = MouseController(appState: settings,
+            cursorLocation: { CGPoint(x: 50, y: 50) },
+            screenBounds: { [CGRect(x: 0, y: 0, width: 100, height: 100)] },
+            warpCursor: { settingsWarps.append($0) })
+        let settingsInput = ControllerInputHandler(mouseController: settingsMouse,
+            clickDragHandler: clicks, keyboardSimulator: keyboard, appState: settings,
+            buttonMapping: settings.buttonMapping)
+        settings.isActive = true
+        settings.deadzone = 0.3
+        settingsInput.processStickFrame(leftX: 0.2, leftY: 0, rightX: 0, rightY: 0, timestamp: 1)
+        settingsInput.processStickFrame(leftX: 0.2, leftY: 0, rightX: 0, rightY: 0, timestamp: 1.01)
+        precondition(settingsWarps.isEmpty, "Slider deadzone must suppress the left stick immediately")
+        settings.deadzone = 0.05
+        settingsInput.processStickFrame(leftX: 0.2, leftY: 0, rightX: 0, rightY: 0, timestamp: 1.02)
+        precondition(settingsWarps.count == 1, "Lowering the slider must immediately allow movement")
+        precondition(settings.buttonMapping.rightStickDeadzone == 0.15, "Left slider must preserve the right stick threshold")
+        precondition(AppState(defaults: defaults).deadzone == 0.05, "Slider must survive relaunch")
+        // Migrate the old visible setting, preserving unrelated customizations.
+        var savedMapping = settings.buttonMapping
+        savedMapping.buttonAAction = .rightClick
+        savedMapping.rightStickDeadzone = 0.25
+        defaults.set(try! JSONEncoder().encode(savedMapping), forKey: "buttonMapping")
+        defaults.set(0.28, forKey: "deadzone")
+        let migrated = AppState(defaults: defaults)
+        precondition(abs(migrated.deadzone - 0.28) < 0.0001)
+        precondition(migrated.buttonMapping.buttonAAction == .rightClick && migrated.buttonMapping.rightStickDeadzone == 0.25)
+        precondition(defaults.object(forKey: "deadzone") == nil, "Legacy key must be retired after persistence")
+        migrated.deadzone = 0.12
+        precondition(AppState(defaults: defaults).deadzone == 0.12, "Legacy migration must not replay over later edits")
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(Double(Float(0.3)), forKey: "deadzone")
+        precondition(AppState(defaults: defaults).deadzone == 0.3, "Previously saved Float maximum must migrate despite Double roundoff")
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(5.0, forKey: "deadzone")
+        precondition(AppState(defaults: defaults).deadzone == 0.1, "Invalid legacy values must not disable cursor movement")
+        print("Passed deadzone live-update, relaunch and migration checks; 24 mapping/lifecycle scenarios plus cursor geometry and stick integration checks; no desktop events posted.")
     }
 }
