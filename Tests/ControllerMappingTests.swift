@@ -207,6 +207,48 @@ struct ControllerMappingTests {
         mouse.stop()
         sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 5)
         precondition(warps.count == 2, "Resume must not jump across a stale interval")
+        // Cursor movement must reach focused apps as drag events, not only a warp.
+        for (action, down, dragged, up, button) in [
+            (ControllerAction.leftDrag, CGEventType.leftMouseDown, CGEventType.leftMouseDragged,
+             CGEventType.leftMouseUp, Int64(0)),
+            (.rightDrag, .rightMouseDown, .rightMouseDragged, .rightMouseUp, 1)
+        ] {
+            sticks.resetInputState()
+            sticks.isActive = true
+            events.removeAll()
+            sticks.processButton(pressed: true, action: action, buttonId: "first")
+            sticks.processButton(pressed: true, action: action, buttonId: "second")
+            sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 10)
+            precondition(events.map { $0.type } == [down], "First movement sample only establishes the clock")
+            sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 10.01)
+            precondition(events.map { $0.type } == [down, dragged], "Warp must be accompanied by a drag event")
+            precondition(events.last!.location == cursor, "Drag event must use the constrained Quartz cursor position")
+            precondition(events.last!.getIntegerValueField(.mouseEventButtonNumber) == button)
+            sticks.processButton(pressed: false, action: .none, buttonId: "first")
+            sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 10.02)
+            precondition(events.map { $0.type } == [down, dragged, dragged], "Remaining drag owner must keep receiving movement")
+            sticks.processButton(pressed: false, action: .none, buttonId: "second")
+            sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 10.03)
+            precondition(events.map { $0.type } == [down, dragged, dragged, up], "Released drag must stop producing drag movement")
+            sticks.processButton(pressed: true, action: action, buttonId: "first")
+            sticks.isActive = false
+            let releasedCount = events.count
+            sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 10.04)
+            precondition(events.count == releasedCount, "Disabled control must not send drag movement")
+        }
+        sticks.isActive = true
+        sticks.resetInputState()
+        events.removeAll()
+        sticks.processButton(pressed: true, action: .leftDrag, buttonId: "left")
+        sticks.processButton(pressed: true, action: .rightDrag, buttonId: "right")
+        sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 20)
+        sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 20.01)
+        precondition(events.map { $0.type } == [.leftMouseDown, .rightMouseDown, .leftMouseDragged, .rightMouseDragged])
+        sticks.resetInputState()
+        events.removeAll()
+        sticks.processStickFrame(leftX: 1, leftY: 0, rightX: 0, rightY: 0, timestamp: 21)
+        sticks.processStickFrame(leftX: 0, leftY: 0, rightX: 0, rightY: 0, timestamp: 21.01)
+        precondition(events.isEmpty, "Reset and stationary movement must not resurrect drag state")
         // The actual AppState -> Combine -> input path must follow slider changes.
         defaults.removePersistentDomain(forName: suite)
         let settings = AppState(defaults: defaults)
@@ -246,6 +288,6 @@ struct ControllerMappingTests {
         defaults.removePersistentDomain(forName: suite)
         defaults.set(5.0, forKey: "deadzone")
         precondition(AppState(defaults: defaults).deadzone == 0.1, "Invalid legacy values must not disable cursor movement")
-        print("Passed deadzone live-update, relaunch and migration checks; 24 mapping/lifecycle scenarios plus cursor geometry and stick integration checks; no desktop events posted.")
+        print("Passed deadzone live-update, relaunch and migration checks; 24 mapping/lifecycle scenarios plus cursor geometry, stick integration and drag-motion checks; no desktop events posted.")
     }
 }

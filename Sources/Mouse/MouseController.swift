@@ -38,19 +38,21 @@ final class MouseController {
         }
     }
 
-    func updateCursorPosition(dx: Float, dy: Float, timestamp: CFTimeInterval) {
+    @discardableResult
+    func updateCursorPosition(dx: Float, dy: Float, timestamp: CFTimeInterval) -> CGPoint? {
         let deltaTime = timestamp - lastUpdateTime
         lastUpdateTime = timestamp
 
-        guard deltaTime > 0 && deltaTime < 0.1 else { return }
+        guard deltaTime > 0 && deltaTime < 0.1 else { return nil }
 
         let scaledDeltaX = CGFloat(dx) * appState.cursorSpeed * appState.sensitivity * CGFloat(deltaTime)
         let scaledDeltaY = CGFloat(dy) * appState.cursorSpeed * appState.sensitivity * CGFloat(deltaTime)
 
         guard dx != 0 || dy != 0, let current = cursorLocation(),
               let target = Self.constrained(CGPoint(x: current.x + scaledDeltaX,
-                                                    y: current.y + scaledDeltaY), to: screenBounds()) else { return }
+                                                    y: current.y + scaledDeltaY), to: screenBounds()), target != current else { return nil }
         warpCursor(target)
+        return target
     }
 
     func stop() {

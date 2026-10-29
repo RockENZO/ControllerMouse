@@ -88,7 +88,9 @@ final class ControllerInputHandler: ObservableObject {
         // One movement integration per sampled frame; both sticks share a clock.
         let magnitude = hypot(dx, dy)
         if magnitude > 1 { dx /= magnitude; dy /= magnitude }
-        mouseController.updateCursorPosition(dx: dx, dy: dy, timestamp: timestamp)
+        if let point = mouseController.updateCursorPosition(dx: dx, dy: dy, timestamp: timestamp) {
+            clickDragHandler.handleDragMovement(at: point)
+        }
     }
 
     // Poll toggle inputs even when cursor control is disabled. Ordinary inputs

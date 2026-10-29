@@ -12,8 +12,8 @@ final class ClickDragHandler {
         self.postEvent = postEvent
     }
 
-    private var isDragging = false
-    private var dragStartLocation: CGPoint = .zero
+    private var isLeftDragging = false
+    private var isRightDragging = false
 
     enum ClickType {
         case leftClick
@@ -43,19 +43,31 @@ final class ClickDragHandler {
             postMouseEvent(at: clickPoint, type: .otherMouseUp, button: .center)
 
         case .leftDragStart:
-            isDragging = true
-            dragStartLocation = mouseLocation
+            isLeftDragging = true
             postMouseEvent(at: clickPoint, type: .leftMouseDown, button: .left)
 
         case .leftDragEnd:
-            isDragging = false
+            isLeftDragging = false
             postMouseEvent(at: clickPoint, type: .leftMouseUp, button: .left)
 
         case .rightDragStart:
+            isRightDragging = true
             postMouseEvent(at: clickPoint, type: .rightMouseDown, button: .right)
 
         case .rightDragEnd:
+            isRightDragging = false
             postMouseEvent(at: clickPoint, type: .rightMouseUp, button: .right)
+        }
+    }
+
+    // Warping the cursor does not post mouse events. A held controller drag
+    // also needs movement events at the same constrained Quartz position.
+    func handleDragMovement(at point: CGPoint) {
+        if isLeftDragging {
+            postMouseEvent(at: point, type: .leftMouseDragged, button: .left)
+        }
+        if isRightDragging {
+            postMouseEvent(at: point, type: .rightMouseDragged, button: .right)
         }
     }
 
