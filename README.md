@@ -8,7 +8,7 @@ A macOS menu bar app that lets you use a game controller to control your mouse c
 - **Click & Drag** — Full support for left-click, right-click, and drag operations via controller buttons
 - **Configurable Deadzone** — Calibrate stick deadzone to suit your controller
 - **Menu Bar App** — Runs quietly in your menu bar, always accessible
-- **Persistent Settings** — Your preferences are saved automatically
+- **Persistent Settings** — Your preferences are saved automatically; saved mappings survive app updates that add fields, and a single unreadable field no longer resets every other customization
 
 ## Default controls and customization
 

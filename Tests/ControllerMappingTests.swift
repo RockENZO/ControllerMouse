@@ -288,6 +288,31 @@ struct ControllerMappingTests {
         defaults.removePersistentDomain(forName: suite)
         defaults.set(5.0, forKey: "deadzone")
         precondition(AppState(defaults: defaults).deadzone == 0.1, "Invalid legacy values must not disable cursor movement")
-        print("Passed deadzone live-update, relaunch and migration checks; 24 mapping/lifecycle scenarios plus cursor geometry, stick integration and drag-motion checks; no desktop events posted.")
+        // Saved mappings from an older or newer schema must keep the settings they
+        // do contain instead of resetting every customization on decode.
+        let partial = #"{"leftStickEnabled":false,"leftStickDeadzone":0.2,"buttonBAction":"nextTab"}"#
+        let partialMapping = try! JSONDecoder().decode(ButtonMapping.self, from: Data(partial.utf8))
+        precondition(partialMapping.leftStickEnabled == false)
+        precondition(abs(partialMapping.leftStickDeadzone - 0.2) < 0.0001)
+        precondition(partialMapping.buttonBAction == .nextTab)
+        precondition(partialMapping.leftTriggerAction == .leftClick && partialMapping.dpadLeftAction == .prevTab,
+                     "Missing keys must keep their checked-in defaults")
+        let mixed = #"{"leftStickEnabled":false,"leftTriggerAction":"not-an-action","buttonYAction":"doubleClick","futureField":1}"#
+        let mixedMapping = try! JSONDecoder().decode(ButtonMapping.self, from: Data(mixed.utf8))
+        precondition(mixedMapping.leftStickEnabled == false && mixedMapping.buttonYAction == .doubleClick,
+                     "One unreadable field must not discard readable preferences")
+        precondition(mixedMapping.leftTriggerAction == .leftClick, "Unreadable action must fall back to its default")
+        let outOfRange = #"{"leftStickDeadzone":-1,"rightStickDeadzone":7}"#
+        let repaired = try! JSONDecoder().decode(ButtonMapping.self, from: Data(outOfRange.utf8))
+        precondition(repaired.leftStickDeadzone == 0.05 && repaired.rightStickDeadzone == 0.3,
+                     "Stick thresholds outside the settings range must be repaired")
+        defaults.removePersistentDomain(forName: suite)
+        defaults.set(Data(partial.utf8), forKey: "buttonMapping")
+        let restored = AppState(defaults: defaults)
+        precondition(restored.buttonMapping.leftStickEnabled == false && restored.buttonMapping.buttonBAction == .nextTab,
+                     "AppState must restore a partially migrated mapping")
+        precondition(try! JSONDecoder().decode(ButtonMapping.self, from: try! JSONEncoder().encode(ButtonMapping())) == ButtonMapping(),
+                     "Encoding and decoding a complete mapping must round-trip")
+        print("Passed deadzone live-update, relaunch and migration checks; 28 mapping/lifecycle scenarios plus cursor geometry, stick integration and drag-motion checks; no desktop events posted.")
     }
 }
