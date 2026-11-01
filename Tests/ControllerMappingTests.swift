@@ -304,8 +304,8 @@ struct ControllerMappingTests {
         precondition(mixedMapping.leftTriggerAction == .leftClick, "Unreadable action must fall back to its default")
         let outOfRange = #"{"leftStickDeadzone":-1,"rightStickDeadzone":7}"#
         let repaired = try! JSONDecoder().decode(ButtonMapping.self, from: Data(outOfRange.utf8))
-        precondition(repaired.leftStickDeadzone == 0 && repaired.rightStickDeadzone == 1,
-                     "Stick thresholds outside 0...1 must be repaired")
+        precondition(repaired.leftStickDeadzone == 0.05 && repaired.rightStickDeadzone == 0.3,
+                     "Stick thresholds outside the settings range must be repaired")
         defaults.removePersistentDomain(forName: suite)
         defaults.set(Data(partial.utf8), forKey: "buttonMapping")
         let restored = AppState(defaults: defaults)

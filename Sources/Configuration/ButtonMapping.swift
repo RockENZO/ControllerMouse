@@ -64,10 +64,11 @@ struct ButtonMapping: Codable, Equatable {
         rightStickPressAction = value(ControllerAction.self, for: .rightStickPressAction, fallback: defaults.rightStickPressAction)
     }
 
-    /// A saved threshold outside 0...1 would make a stick unusable; keep such a
-    /// value from silently disabling cursor control after a corrupted preference.
+    /// The settings sliders expose 0.05...0.3. A saved value outside that range
+    /// cannot be edited back through the UI, so repair it instead of keeping an
+    /// unusable or unrepresentable threshold after a corrupted preference.
     private static func calibratedDeadzone(_ value: Float, fallback: Float) -> Float {
-        value.isFinite ? min(max(value, 0), 1) : fallback
+        value.isFinite ? min(max(value, 0.05), 0.3) : fallback
     }
 }
 
