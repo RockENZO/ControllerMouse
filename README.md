@@ -39,7 +39,7 @@ even if its mapping changed while held. Toggle actions remain available when
 cursor control is disabled. Disabling control, disconnecting/replacing the
 controller or quitting the app releases held input; a newly connected controller
 starts with fresh button-edge state. Ordinary held inputs do not replay when
-control is reenabled. While a mapped drag is held, stick movement sends matching left/right mouse-drag events at the constrained cursor position; moving the pointer alone does not notify the focused application of a drag. Shared mappings keep the drag active until the last owner releases it.
+control is reenabled. While a mapped drag is held, stick movement sends matching left/right mouse-drag events at the constrained cursor position; moving the pointer alone does not notify the focused application of a drag. Shared mappings keep the drag active until the last owner releases it. Clicks mapped to the same mouse button are ignored during the drag, including a double-click during a left drag.
 
 The Cursor section’s Deadzone slider controls the left stick immediately and persists across relaunches. The right stick has its own deadzone in Edit Button Mapping; changing the left threshold does not change it. Settings saved by older versions are migrated automatically. Cursor speed, sensitivity and button mappings are also configurable. Actual controller/device behavior has not been revalidated as part of this documentation update.
 

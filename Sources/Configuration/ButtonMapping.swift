@@ -87,4 +87,6 @@ enum ControllerAction: String, Codable, CaseIterable {
     case prevTab
     case nextTab
     case toggleControl
+
+    var isDrag: Bool { self == .leftDrag || self == .rightDrag }
 }

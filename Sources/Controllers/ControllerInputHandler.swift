@@ -99,9 +99,12 @@ final class ControllerInputHandler: ObservableObject {
         for (id, pressed, action) in inputs where action == .toggleControl {
             processButton(pressed: pressed, action: action, buttonId: id)
         }
-        // Establish new owners before releasing old ones so a same-frame
-        // handoff cannot briefly lift the shared mouse button.
-        for (id, pressed, action) in inputs where action != .toggleControl && pressed {
+        // Establish drag owners before clicks or releases in this frame.
+        // A same-frame click or handoff must not lift the dragged mouse button.
+        for (id, pressed, action) in inputs where action.isDrag && pressed {
+            processButton(pressed: pressed, action: action, buttonId: id)
+        }
+        for (id, pressed, action) in inputs where action != .toggleControl && !action.isDrag && pressed {
             processButton(pressed: pressed, action: action, buttonId: id)
         }
         for (id, pressed, action) in inputs where action != .toggleControl && !pressed {
@@ -113,7 +116,7 @@ final class ControllerInputHandler: ObservableObject {
         let wasPressed = previousButtonStates[buttonId] ?? false
 
         if pressed && !wasPressed && (isActive || action == .toggleControl) {
-            let sharedDrag = (action == .leftDrag || action == .rightDrag) && pressedActions.values.contains(action)
+            let sharedDrag = action.isDrag && pressedActions.values.contains(action)
             pressedActions[buttonId] = action
             if !sharedDrag { handleAction(action) }
         } else if !pressed && wasPressed {

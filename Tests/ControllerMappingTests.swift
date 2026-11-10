@@ -169,6 +169,26 @@ struct ControllerMappingTests {
                 precondition(events.count == 2, "Final frame must release exactly once")
             }
         }
+        // A click sharing a held drag's mouse button must not release it.
+        handler.resetInputState()
+        events.removeAll()
+        handler.processButtonFrame([("buttonA", true, .leftClick), ("trigger", true, .leftDrag)])
+        handler.processButtonFrame([("buttonA", false, .leftClick), ("trigger", true, .leftDrag),
+                                    ("buttonY", true, .doubleClick), ("buttonB", true, .rightClick)])
+        precondition(events.map { $0.type } == [.leftMouseDown, .rightMouseDown, .rightMouseUp],
+                     "A held drag must suppress same-side clicks but allow other buttons")
+        handler.processButtonFrame([("trigger", false, .leftDrag), ("buttonY", false, .doubleClick)])
+        handler.processButtonFrame([("buttonA", true, .leftClick)])
+        precondition(events.map { $0.type } == [.leftMouseDown, .rightMouseDown, .rightMouseUp,
+                                                .leftMouseUp, .leftMouseDown, .leftMouseUp],
+                     "Clicks must resume after the last drag owner releases")
+        handler.resetInputState()
+        events.removeAll()
+        handler.processButtonFrame([("buttonB", true, .rightClick), ("shoulder", true, .rightDrag)])
+        handler.processButtonFrame([("shoulder", false, .rightDrag)])
+        precondition(events.map { $0.type } == [.rightMouseDown, .rightMouseUp],
+                     "A same-frame right click must not interrupt a right drag")
+        handler.resetInputState()
         let state = AppState(defaults: defaults)
         let originalSpeed = state.cursorSpeed
         let originalSensitivity = state.sensitivity
