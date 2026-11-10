@@ -31,10 +31,12 @@ final class ClickDragHandler {
 
         switch type {
         case .leftClick:
+            guard !isLeftDragging else { return }
             postMouseEvent(at: clickPoint, type: .leftMouseDown, button: .left)
             postMouseEvent(at: clickPoint, type: .leftMouseUp, button: .left)
 
         case .rightClick:
+            guard !isRightDragging else { return }
             postMouseEvent(at: clickPoint, type: .rightMouseDown, button: .right)
             postMouseEvent(at: clickPoint, type: .rightMouseUp, button: .right)
 
@@ -72,6 +74,7 @@ final class ClickDragHandler {
     }
 
     func handleDoubleClick() {
+        guard !isLeftDragging else { return }
         let mouseLocation = NSEvent.mouseLocation
         let clickPoint = invertPoint(mouseLocation)
 
